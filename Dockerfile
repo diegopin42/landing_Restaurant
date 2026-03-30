@@ -22,9 +22,9 @@ ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# 5. Ajustar Apache para que escuche el puerto dinámico de Render
-RUN sed -i "s/Listen 80/Listen \${PORT:-80}/g" /etc/apache2/ports.conf
-RUN sed -i "s/:80/:\${PORT:-80}/g" /etc/apache2/sites-available/000-default.conf
+# 5. Ajustar Apache para que escuche el puerto que Render nos asigne
+RUN sed -i "s/Listen 80/Listen \${PORT}/g" /etc/apache2/ports.conf
+RUN sed -i "s/:80/:\${PORT}/g" /etc/apache2/sites-available/000-default.conf
 
 # 6. Copiar los archivos de tu proyecto al contenedor
 WORKDIR /var/www/html
