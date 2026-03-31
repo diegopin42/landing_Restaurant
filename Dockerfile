@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
     unzip \
     nodejs \
     npm \
-    libpq-dev
+    libpq-dev \
+    git
 
 # 2. Instalar extensiones de PHP necesarias
 RUN docker-php-ext-install pdo pdo_pgsql mbstring gd
@@ -26,19 +27,28 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 RUN sed -i "s/Listen 80/Listen \${PORT}/g" /etc/apache2/ports.conf
 RUN sed -i "s/:80/:\${PORT}/g" /etc/apache2/sites-available/000-default.conf
 
-# 6. Copiar los archivos de tu proyecto al contenedor
+# 6. Preparar el directorio de trabajo y copiar archivos
 WORKDIR /var/www/html
 COPY . .
 
-# 7. Instalar Composer y las dependencias de Laravel
+# 7. Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-RUN composer install --no-dev --optimize-autoloader
 
-# 8. Compilar los assets de React y Tailwind CSS
+# 8. Instalar dependencias de PHP SIN ejecutar scripts automáticos (Evita Error 1)
+RUN composer install --no-dev --no-scripts --optimize-autoloader
+
+# 9. Instalar dependencias de Node y compilar assets (Tailwind/Vite)
 RUN npm install && npm run build
 
-# 9. Dar permisos de escritura a Laravel para cache y logs
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# 10. Configurar permisos para storage y cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
+    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# 10. Forzar migraciones de BD y arrancar el servidor
-CMD php artisan migrate --force && apache2-foreground
+# 11. Comando de inicio (Runtime)
+# Aquí es donde Laravel ya tiene acceso a la DB de Render para migrar y descubrir paquetes
+CMD php artisan package:discover --ansi && \
+    php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache && \
+    php artisan migrate --force && \
+    apache2-foreground
